@@ -21,6 +21,23 @@ from .env import AttrDict
 
 from huggingface_hub import PyTorchModelHubMixin, hf_hub_download
 
+# ESTATE PATCH (2026-11-18): filter every download kwarg against the
+# INSTALLED hf_hub_download signature — hub 1.x removed several
+# (proxies, resume_download among them); the same file loads on old
+# and new hubs.
+import inspect as _inspect
+
+_HF_HUB_DOWNLOAD_PARAMS = frozenset(
+    _inspect.signature(hf_hub_download).parameters
+)
+
+def _hub_download(**kwargs):
+    """hf_hub_download with kwargs filtered to the installed signature."""
+    dropped = sorted(set(kwargs) - _HF_HUB_DOWNLOAD_PARAMS)
+    if dropped:
+        print(f"[bigvgan] hf_hub_download ignores removed kwargs: {', '.join(dropped)}")
+    return hf_hub_download(**{k: v for k, v in kwargs.items() if k in _HF_HUB_DOWNLOAD_PARAMS})
+
 
 def load_hparams_from_json(path) -> AttrDict:
     with open(path) as f:
@@ -418,8 +435,12 @@ class BigVGAN(
             revision: str,
             cache_dir: str,
             force_download: bool,
-            proxies: Optional[Dict],
-            resume_download: bool,
+            # ESTATE PATCH (2026-11-18): huggingface_hub >= 1.x no
+            # longer passes proxies or resume_download to the mixin's
+            # _from_pretrained hook (both left the download API);
+            # defaults keep the old-hub call shape loading too.
+            proxies: Optional[Dict] = None,
+            resume_download: bool = False,
             local_files_only: bool,
             token: Union[str, bool, None],
             map_location: str = "cpu",  # Additional argument
@@ -434,7 +455,7 @@ class BigVGAN(
             print("Loading config.json from local directory")
             config_file = os.path.join(model_id, "config.json")
         else:
-            config_file = hf_hub_download(
+            config_file = _hub_download(
                 repo_id=model_id,
                 filename="config.json",
                 revision=revision,
@@ -466,7 +487,7 @@ class BigVGAN(
             model_file = os.path.join(model_id, "bigvgan_generator.pt")
         else:
             print(f"Loading weights from {model_id}")
-            model_file = hf_hub_download(
+            model_file = _hub_download(
                 repo_id=model_id,
                 filename="bigvgan_generator.pt",
                 revision=revision,

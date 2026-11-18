@@ -9,7 +9,11 @@ from torch.nn.utils import weight_norm
 
 matplotlib.use("Agg")
 import matplotlib.pylab as plt
-from .meldataset import MAX_WAV_VALUE
+# ESTATE PATCH (2026-11-18): meldataset drags a librosa/matplotlib
+# import chain that is brittle on the estate's Python 3.14 stack;
+# synthesis needs only the int16 full-scale constant, inlined
+# verbatim from meldataset.
+MAX_WAV_VALUE = 32767.0  # NOTE: 32768.0 -1 to prevent int16 overflow (results in popping sound in corner cases)
 from scipy.io.wavfile import write
 
 
