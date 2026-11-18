@@ -1,5 +1,10 @@
 librosa
-huggingface-hub
+# ESTATE STANDARD (2026-11-18): the audiocore wall forbids a floating
+# boot-critical dep — huggingface_hub rides ==1.33.0 everywhere
+# (melite-audio-nodes, melite-kimodo-nodes), the 1.x line the pack's
+# own BigVGAN hub-1.x patch targets. Everything else stays as
+# upstream ships it — out of this law's scope, deliberately untouched.
+huggingface_hub==1.33.0
 munch
 einops
 pydub
